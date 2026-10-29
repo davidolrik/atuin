@@ -21,14 +21,14 @@ usage, self-hosting, and AI features.
 - [Advanced usage](https://docs.atuin.sh/guide/advanced-usage/index.md): Filter modes (global, host, session, directory, workspace) and search modes (prefix, fulltext, fuzzy, daemon-fuzzy).
 - [Shell Integration](https://docs.atuin.sh/guide/shell-integration/index.md): How shell hooks work, environment variables, and embedded terminals.
 - [AI Agent Hooks](https://docs.atuin.sh/guide/agent-hooks/index.md): Capture commands from AI coding agents (Claude Code, Codex, opencode, pi) and filter by author.
-- [Excluding commands](https://docs.atuin.sh/guide/excluding-commands/index.md): Keep commands out of history with ignorespace, history_filter, and cwd_filter.
+- [Keeping secrets out](https://docs.atuin.sh/guide/excluding-commands/index.md): Keep commands, their output, credential files and your own secrets out of history, captured output and threads, by goal - ignorespace, history_filter, cwd_filter, command_filter, sensitive_files, redact_patterns, capture_tools.
+- [Capturing command output](https://docs.atuin.sh/guide/output-capture/index.md): Capture what each command printed - setup, reading and searching it, what's kept, privacy, and disk retention.
 - [Deleting history](https://docs.atuin.sh/guide/delete-history/index.md): Delete single entries, bulk delete by query, remove duplicates, or wipe everything.
-- [Syncing dotfiles](https://docs.atuin.sh/guide/dotfiles/index.md): Sync shell aliases and environment variables across machines.
 - [Theming](https://docs.atuin.sh/guide/theming/index.md): Customize the TUI with color themes.
 
 ## Configuration
 
-- [Config](https://docs.atuin.sh/configuration/config/index.md): Complete reference for ~/.config/atuin/config.toml - all settings with defaults and examples.
+- [Config](https://docs.atuin.sh/configuration/config/index.md): Complete reference for ~/.atuin/config.toml - all settings with defaults and examples.
 - [Key Binding](https://docs.atuin.sh/configuration/key-binding/index.md): Custom up-arrow filter mode, disable up-arrow or ctrl-r, vim mode.
 - [Advanced Key Binding](https://docs.atuin.sh/configuration/advanced-key-binding/index.md): Full keymap customization with emacs, vim-normal, vim-insert, and inspector modes.
 
@@ -44,6 +44,7 @@ usage, self-hosting, and AI features.
 - [pty-proxy](https://docs.atuin.sh/reference/pty-proxy/index.md): Experimental PTY proxy with popup rendering over existing terminal output.
 - [import](https://docs.atuin.sh/reference/import/index.md): Import history from bash, fish, zsh, replxx, mcfly, resh, and xonsh.
 - [info](https://docs.atuin.sh/reference/info/index.md): Show config file paths, env vars, and version info.
+- [output](https://docs.atuin.sh/reference/output/index.md): The `atuin output search` command - full-text search over captured command output, with plain, pretty, and JSON output.
 - [history list](https://docs.atuin.sh/reference/list/index.md): List history entries with formatting, filtering by cwd/session, and custom output templates.
 - [history prune](https://docs.atuin.sh/reference/prune/index.md): Delete entries matching history_filter config (useful after updating filters).
 - [search](https://docs.atuin.sh/reference/search/index.md): Search history with wildcards, filters (cwd, exit code, before/after), and delete mode.
@@ -68,6 +69,7 @@ usage, self-hosting, and AI features.
 - [Skills](https://docs.atuin.sh/ai/skills/index.md): Reusable instruction sets (skills) for Atuin AI - playbooks, conventions, workflows.
 - [Tools & Permissions](https://docs.atuin.sh/ai/tools-permissions/index.md): Tools the AI can use (shell, filesystem) and permission files to control access.
 - [Reading Command Output](https://docs.atuin.sh/ai/command-output/index.md): Let Atuin AI read command outputs - capture via pty-proxy and the daemon.
+- [Threads](https://docs.atuin.sh/ai/threads/index.md): Threads - search and resume the AI coding-agent sessions the daemon captures, and rebuild their index.
 - [MCP Server](https://docs.atuin.sh/ai/mcp/index.md): Built-in MCP server exposing history search and command output to Claude Code, Cursor, and other AI tools.
 - [Self Hosting & Local Models](https://docs.atuin.sh/ai/self-hosting/index.md): Self-hosting the Atuin AI backend.
 

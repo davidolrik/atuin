@@ -42,7 +42,7 @@ This also works for table keys, showing all resolved children as flat dotted key
 $ atuin config get logs --resolved
 logs.ai.file = ai.log
 logs.daemon.file = daemon.log
-logs.dir = /home/user/.local/share/atuin/logs
+logs.dir = /home/user/.atuin/logs
 logs.enabled = true
 logs.level = info
 logs.search.file = search.log
@@ -63,7 +63,7 @@ Resolved:
 
 ### `atuin config set <key> <value>`
 
-Set a configuration value in your `config.toml`. The file's existing formatting and comments are preserved.
+Set a configuration value in your `config.toml`. The file's existing formatting and comments are preserved.[1](#fn:1)
 
 ```
 $ atuin config set search_mode fuzzy
@@ -104,6 +104,38 @@ $ atuin config set logs true
 Error: 'logs' is a table; use a dotted key like 'logs.key' to set a value within it
 ```
 
+### `atuin config enable <feature>`
+
+Turn on a feature along with the settings it depends on, then restart the daemon so it takes effect.
+
+```
+$ atuin config enable output-capture
+```
+
+| Feature          | What it sets                                                                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `daemon`         | `daemon.enabled`, `daemon.autostart`, and `search_mode = "daemon-fuzzy"`                                                                                             |
+| `output-capture` | `daemon.enabled`, `daemon.autostart`, `pty_proxy.enabled`, and `output.enabled`. See [Capturing Command Output](https://docs.atuin.sh/guide/output-capture/index.md) |
+
+If the daemon is already enabled, its `autostart` is left alone, since a service manager such as systemd or `launchd` may run it. With `autostart` off, Atuin asks you to restart the daemon rather than doing it itself. Open a new shell afterward.
+
+### `atuin config disable <feature>`
+
+Turn off a feature.
+
+```
+$ atuin config disable output-capture
+```
+
+| Feature          | What it sets                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `daemon`         | `daemon.enabled = false`, `daemon.autostart = false`, and `search_mode = "fuzzy"` if it was `"daemon-fuzzy"` |
+| `output-capture` | `output.enabled = false`. Leaves the daemon and search mode unchanged                                        |
+
+Disabling the daemon stops it if it was running.
+
+Disabling output capture restarts an enabled daemon with `autostart` on so it picks up the change. Open a new shell afterward.
+
 ### `atuin config print [key]`
 
 Print configuration values from your config file in TOML format. Without a key, prints the entire file. With a key, prints that section:
@@ -116,3 +148,7 @@ socket_path = "/tmp/atuin_daemon.sock"
 pidfile_path = "/tmp/atuin_daemon.pid"
 autostart = false
 ```
+
+______________________________________________________________________
+
+1. If your config doesn't already contain the key, Atuin searches for an intelligent place to insert it. If your config has a commented-out assignment of the key like `# style = "compact"`, Atuin may uncomment the example and update the value, or insert a new assignment nearby, depending on whether it's safe to replace the comment. [↩](#fnref:1 "Jump back to footnote 1 in the text")

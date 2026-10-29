@@ -167,8 +167,8 @@ Adding this to the above sample, `bind \e\[1\;5A _atuin_search` will provide the
 
 ```
 $env.ATUIN_NOBIND = true
-atuin init nu | save -f ~/.local/share/atuin/init.nu #make sure you created the directory beforehand with `mkdir ~/.local/share/atuin`
-source ~/.local/share/atuin/init.nu
+atuin init nu | save -f ~/.atuin/init.nu  # make sure you created the directory beforehand with `mkdir ~/.atuin`
+source ~/.atuin/init.nu
 
 #bind to ctrl-r in emacs, vi_normal and vi_insert modes, add any other bindings you want here too
 $env.config = (
@@ -216,6 +216,8 @@ $env.config = (
 | Ctrl + a, D                          | Delete **all** history entries matching the selected command                                                   |
 | Ctrl + a, a                          | Move cursor to the start of the line                                                                           |
 | Ctrl + a, c                          | Switch to the context of the currently selected command / return to default                                    |
+| Ctrl + a, g                          | Change to the directory the selected command ran in                                                            |
+| Ctrl + a, G                          | Put a `cd` to the selected command's directory on the command line                                             |
 
 ### Prefix mode
 

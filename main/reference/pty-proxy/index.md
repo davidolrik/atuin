@@ -18,18 +18,18 @@ tmux can solve the same problem without pty-proxy: set [`[tmux] enabled = true`]
 
 ## Capturing command output
 
-Because pty-proxy sits between your terminal and your shell, it can also record what each command printed. It reads the [OSC 133](https://gitlab.freedesktop.org/Per_Bothner/specifications/blob/master/proposals/prompts-data-model.md) prompt markers that your shell emits, using them to tell where one command's output ends and the next begins. It then hands each captured block to the [daemon](https://docs.atuin.sh/reference/daemon/index.md), which holds it in memory, keyed by the command's Atuin history ID.
+Because pty-proxy sits between your terminal and your shell, it can also record what each command printed. It reads special escape sequences[1](#fn:1) emitted by Atuin's shell integration to tell where one command's output ends and the next begins. It then hands each captured block to the [daemon](https://docs.atuin.sh/reference/daemon/index.md), which holds it on disk, keyed by the command's Atuin history ID.
 
 That capture is what lets AI tools see what actually happened, rather than guessing from the command alone:
 
 - [Atuin AI](https://docs.atuin.sh/ai/introduction/index.md) can answer "why did that fail?" by reading the real error, via its `AtuinOutput` tool
 - External agents such as Claude Code and Cursor can do the same through Atuin's [MCP server](https://docs.atuin.sh/ai/mcp/index.md)
 
-Output capture needs **both** pty-proxy and the daemon running. Nothing is captured by default. See [Reading Command Output](https://docs.atuin.sh/ai/command-output/index.md) for setup, retention limits, and privacy.
+Output capture needs **both** pty-proxy and the daemon running. Nothing is captured by default. See [Capturing Command Output](https://docs.atuin.sh/guide/output-capture/index.md) for setup, retention limits, and privacy.
 
 ## Initialization
 
-The simplest way to enable pty-proxy is via your Atuin config (`~/.config/atuin/config.toml`) — no extra shell config needed:
+The simplest way to enable pty-proxy is via your Atuin config (`~/.atuin/config.toml`) — no extra shell config needed:
 
 ```
 [pty_proxy]
@@ -41,6 +41,10 @@ With this set, your existing `atuin init` line starts the proxy automatically.
 Startup performance
 
 When enabled this way, the proxy starts wherever your `atuin init` line sits, and everything sourced *before* that line runs a second time inside the proxy. This is harmless, but for the fastest startup keep your `atuin init` line as high in your shell config as possible.
+
+Linux virtual consoles
+
+A PTY proxy will not be automatically spawned directly inside a Linux virtual console (`/dev/tty1`, `/dev/tty2`, etc.) because this would interfere with programs that need direct console access, like `chvt`, `setfont`, and `startx`. However, you can still run `atuin pty-proxy` to start a proxy manually.
 
 Alternatively, you can initialize pty-proxy explicitly in your shell config. Place the init line shown below as high in the document as possible, *before* your normal `atuin init` call. Both methods can coexist safely — the proxy only starts once.
 
@@ -63,14 +67,14 @@ to your `is-interactive` block in your `~/.config/fish/config.fish` file
 Run in *Nushell*:
 
 ```
-mkdir ~/.local/share/atuin/
-atuin pty-proxy init nu | save -f ~/.local/share/atuin/pty-proxy-init.nu
+mkdir ~/.atuin/
+atuin pty-proxy init nu | save -f ~/.atuin/pty-proxy-init.nu
 ```
 
 Add to `config.nu`, **before** the regular `atuin init`:
 
 ```
-source ~/.local/share/atuin/pty-proxy-init.nu
+source ~/.atuin/pty-proxy-init.nu
 ```
 
 Nushell's `source` command requires a static file path, so you must pre-generate the file.
@@ -87,3 +91,7 @@ eval "$(atuin pty-proxy init bash)"
 
 eval "$(atuin init bash)"
 ```
+
+______________________________________________________________________
+
+1. Atuin uses custom [OSC](https://en.wikipedia.org/wiki/ANSI_escape_code#Operating_System_Command_sequences) escape sequences that begin with `OSC 18188735`. 18188735 is `atuin` interpreted as a base-36 number; it was chosen to minimize conflicts with other programs and terminals. [↩](#fnref:1 "Jump back to footnote 1 in the text")

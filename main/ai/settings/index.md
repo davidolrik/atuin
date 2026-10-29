@@ -14,17 +14,13 @@ Default: unset
 
 The Atuin AI model to use for new sessions. If unset, the default model will be used. You can see the available models by running `/model` inside the Atuin AI interface.
 
-### `db_path`
-
-Default: `ai_sessions.db` in the Atuin data directory.
-
-The path to the SQLite database where Atuin AI sessions are stored.
-
 ### `session_continue_minutes`
 
-Default: `60` (minutes)
+Default: `1h`
 
-The amount of time after the last interaction with Atuin AI that a session is considered "recent" and can be automatically continued. If you interact with Atuin AI and then invoke it again within this time window, the second interaction will be part of the same session. If you wait longer than this time window, a new session will be started. You can always start a new session manually by using the `/new` slash command in the Atuin AI interface.
+The amount of time after the last interaction with Atuin AI that a session is considered "recent" and can be automatically continued, given as a duration like `30m`, `1h`, or `2h`. If you interact with Atuin AI and then invoke it again within this time window, the second interaction will be part of the same session. If you wait longer than this time window, a new session will be started. You can always start a new session manually by using the `/new` slash command in the Atuin AI interface.
+
+A bare number is read as a count of minutes (`session_continue_minutes = 60`), for backwards compatibility.
 
 ### endpoint
 
@@ -128,3 +124,21 @@ Whether to send your previous command as context in the initial request, so the 
 [ai.opening]
 send_last_command = true
 ```
+
+## Threads
+
+Settings for capturing your AI coding agents' sessions as [threads](https://docs.atuin.sh/ai/threads/index.md). These are specified under `[threads]`. Before `[threads]`, they were `capture_sessions` and `capture_tools` under `[ai]`, which still work when the `[threads]` setting isn't set.
+
+### `capture`
+
+Default: `false`
+
+Capture the sessions of your AI coding agents (Claude Code, Codex, opencode and Pi) as threads into the encrypted record store, and sync them. Only sessions your agents work in after you turn it on are captured; `atuin threads import` brings in the rest. `atuin config enable threads` sets it, along with the daemon it needs. See [Threads](https://docs.atuin.sh/ai/threads/index.md).
+
+### `capture_tools`
+
+Default: `true`
+
+With `capture`, also capture what each tool call was given and what it returned, and the diff of each edit, so a resumed session has its tool calls and edits back. Set it to `false` to keep only the name of each tool called. See [What's captured](https://docs.atuin.sh/ai/threads/#whats-captured).
+
+The picker's own settings also go under `[threads]`: see [Settings](https://docs.atuin.sh/ai/threads/#settings).
