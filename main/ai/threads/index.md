@@ -3,12 +3,12 @@
 A thread is an AI coding agent's session as Atuin captured it. To turn capture on, run:
 
 ```
-atuin threads enable
+atuin setup --only --threads --daemon
 ```
 
-That's short for `atuin config enable threads`. It sets `capture = true` under `[threads]`, turns on the daemon if it isn't already, and offers to import the sessions your agents already have. `atuin resume` offers the same each time it runs while capture is off, and `atuin config disable threads` turns it off again.
+That sets `enabled = true` under `[threads]`, and turns on the daemon that capture needs if it isn't on already. `atuin setup` without `--only` offers the same, and then offers to import the sessions your agents already have. `atuin resume` offers to turn capture on each time it runs while capture is off, and `atuin setup --only --no-threads` turns it off again.
 
-With `capture = true` under `[threads]`, the Atuin daemon records the sessions of your AI coding agents (Claude Code, Codex, Copilot, Grok Build, Kiro, opencode, Pi and Amp) as threads into the encrypted record store, and syncs them like your history. `atuin threads` lists, shows, searches and follows them.
+With `enabled = true` under `[threads]`, the Atuin daemon records the sessions of your AI coding agents (Claude Code, Codex, Copilot, Grok Build, Hermes Agent, Kiro, Mistral Vibe, opencode, Pi and Amp) as threads into the encrypted record store, and syncs them like your history. `atuin threads` lists, shows, searches and follows them.
 
 The daemon keeps a local search index of these threads beside the record store, and brings it up to date as threads are captured, synced in from your other machines, or imported.
 
@@ -25,10 +25,10 @@ That imports every session the agents have on this machine (or just one agent's,
 Amp keeps its threads on its servers, not on disk, so a plugin hands them to Atuin instead:
 
 ```
-atuin hook install amp
+atuin setup --only --agent-history
 ```
 
-Then restart Amp. At the end of each turn, the plugin pushes the turn's messages with `atuin threads push`. Only turns taken with the plugin installed, while the daemon is running, are captured. To bring in the rest (threads from before the plugin, or turns it missed), import them from Amp's servers:
+That installs the hooks of every agent that setup finds, Amp's among them. For Amp, it writes Atuin's plugin to `~/.config/amp/plugins/atuin.ts`, or to `$XDG_CONFIG_HOME/amp/plugins/atuin.ts` if you have set `XDG_CONFIG_HOME`. Then restart Amp. At the end of each turn, the plugin pushes the turn's messages with `atuin threads push`. Only turns taken with the plugin installed, while the daemon is running, are captured. To bring in the rest (threads from before the plugin, or turns it missed), import them from Amp's servers:
 
 ```
 atuin threads import --harness amp
@@ -40,11 +40,43 @@ That exports each of your threads with `amp threads export`, as the Amp you're l
 
 `atuin resume` reopens an Amp thread with `amp threads continue <id>`, which fetches it from Amp's servers. An Amp thread can be continued in another agent, but Atuin can't write Amp threads, so it can't fork one or continue another agent's session in Amp.
 
+### Hermes Agent
+
+Hermes keeps every session in one database, `state.db` in its home (`$HERMES_HOME`, else `~/.hermes`), and one more for each profile (`profiles/<name>/state.db`). Atuin reads them all, but only coding work becomes a thread: sessions from the `hermes` command line, its TUI, Desktop, ACP and one-shot (`-q`) runs, and the subagents those sessions delegate to (`delegate_task`), each a child of the session it works for. Atuin leaves out gateway chats (Telegram and the rest), scheduled jobs, and their subagents. It opens the database only for each read and closes it again, so it never stops Hermes's own maintenance.
+
+When you `/undo`, `/retry` or edit a turn, the turn it drops stays in the thread, as a branch the conversation left. A compaction keeps each message once. Atuin reads stores from Hermes v0.23.0 and later in full, and an older store as far as its columns allow.
+
+`atuin resume` reopens a session with `hermes -p <profile> --resume <id>`, the profile whose store holds it (`default` for the home's own, since a bare `hermes` follows `hermes profile use`), from any directory: Hermes goes back to the session's own.
+
+Atuin writes Hermes sessions through its Hermes plugin, so restoring a session recorded on another machine, forking one, or continuing another agent's session in Hermes needs it installed, as Amp's capture does:
+
+```
+atuin setup --only --agent-history
+```
+
+That installs it into the profile a bare `hermes` uses, which is where Atuin writes. Only Hermes's gateway writes its database, so the plugin adds a `hermes atuin import` command that hands the gateway one new session. Hermes takes only new sessions that way, so Atuin never catches up or switches a Hermes copy: it forks instead. Titles are unique in a Hermes store, so a fork, or a restore whose title is taken, gets the next of its line, as `/branch` names one. For example, a fork of `Fix the flaky test` is `Fix the flaky test #2`.
+
+A restored or forked session holds the branch Hermes resumes, so a turn undone with `/undo` stays out of it. Atuin can tell a turn was undone only once a turn came after it. A restored fork names the session it was forked from, as the fork itself does, so it stays grouped under it as a fork.
+
+A restored or forked session keeps the model it ran on, and its provider, only when the profile's own provider is the same one. That's `model.provider` in the profile's `config.yaml`. A provider the profile isn't set up for would have no credentials there. Otherwise, as for a session continued from another agent, it runs on the profile's default model.
+
+Hermes takes at most 10,000 messages and 5 MiB in one session. A session over 5 MiB has its oldest tool output cut, one result at a time, until it fits, and Atuin says how many it cut. A shell command's result keeps its exit code. Atuin still holds the whole session. A session over 10,000 messages, or still over 5 MiB with every tool output cut, isn't written, and Atuin says which limit it's over.
+
+### Mistral Vibe
+
+Every Vibe surface that runs on your machine keeps its sessions in one store: the `vibe` terminal UI, `vibe -p`, the editors that run `vibe-acp` (the VS Code extension, Zed, JetBrains IDEs and Xcode), and Vibe Desktop's local sessions. The store is `logs/session/unified/` in Vibe's home (`$VIBE_HOME`, else `~/.vibe`). Atuin captures a turn as it runs: each tool call once it has settled, with its output, and an edit or a file write with its diff. Vibe keeps token usage only for its latest turns, so a session Atuin captures long after it ran has no usage for its older turns. A subagent is a thread of its own, a child of the session that spawned it. Vibe Code Web's sessions live on Mistral's servers, so Atuin can't capture them. Atuin reads stores from Vibe 3.1.3. Vibe doesn't document its store, so a newer Vibe may change what Atuin can read.
+
+`atuin resume` reopens a session with `vibe --resume <id>`, in the directory the session worked in.
+
+Vibe's store is private to Vibe, so Atuin never writes it. To restore a session, fork one, or continue another agent's session in Vibe, Atuin writes it out as one of the session folders Vibe 2 kept, beside the store. Vibe imports such a folder into its store when the session is resumed, and resumes that import whenever the session is resumed again. Atuin reads the import as the session it wrote. A system message, such as a compaction summary, goes in as a user message, since Vibe's import drops system messages. Vibe needs a result for every tool call, so a call that has none is answered with a note that says so. Until Vibe has imported the folder, Atuin can catch it up with messages from your other machines. After that, Atuin can't catch up the session or switch its branch, so it forks instead.
+
+Vibe has no hooks that record the commands it runs, but its threads are captured all the same.
+
 ## What's captured
 
 Capture keeps the conversation (what you and the agent said) and its tool calls: each call's input and output (the commands run and what they printed, the files read and written). A session resumed from them, on this machine or another, has its tool calls back as they were, and so does a session continued in another agent (see [Resuming](#resuming)). Reasoning is kept only as a marker that the model reasoned.
 
-When an agent edits a file, capture also keeps the diff the agent recorded for the edit (Claude Code, Codex, Copilot, opencode and pi each keep one; for Grok Build, Atuin works it out from the file as the turn found it), so a resumed session shows its edits as the agent showed them, and `atuin threads show` prints them. A diff names its file and the lines changed, with a few lines around them, not the whole file. Search covers the names of the files a session changed.
+When an agent edits a file, capture also keeps the diff the agent recorded for the edit (Claude Code, Codex, Copilot, Mistral Vibe, opencode and pi each keep one; for Grok Build, Atuin works it out from the file as the turn found it), so a resumed session shows its edits as the agent showed them, and `atuin threads show` prints them. A session continued in another agent keeps its diffs too, except in Hermes Agent and Kiro, which have nowhere to keep them. A diff names its file and the lines changed, with a few lines around them, not the whole file. Search covers the names of the files a session changed.
 
 Secrets Atuin recognises are replaced with `****`, in the conversation and the tool calls alike: the [same patterns](https://docs.atuin.sh/configuration/config/#secrets_filter) as for captured command output, and your own [`redact_patterns`](https://docs.atuin.sh/configuration/config/#redact_patterns). Images are left out, and the input or output of a single call is clipped to 64 KiB, keeping its start and its end. An edit's diff past 64 KiB keeps only the files it changed. Search covers a call's input, but not its output.
 
@@ -61,7 +93,7 @@ Tool calls can be a lot of your codebase, not just your conversations. To keep o
 
 ```
 [threads]
-capture = true
+enabled = true
 capture_tools = false
 ```
 
@@ -80,25 +112,27 @@ atuin threads search "flaky test"
 
 ## Resuming
 
-`atuin resume` (or a key you bind to it, see [Binding `atuin resume`](https://docs.atuin.sh/reference/init/#binding-atuin-resume)) opens a picker over your threads. It works like the history search: type to search, `Ctrl`+`O` inspects the selected thread, and `Esc` leaves. `atuin threads resume` is the same command, under its longer name.
+`atuin resume` (or [a key bound to it](https://docs.atuin.sh/configuration/key-binding/#thread-resume-key)) opens a picker over your threads. It works like the history search: type to search, `Ctrl`+`O` inspects the selected thread, and `Esc` leaves. `atuin threads resume` is the same command, under its longer name.
 
-No key opens it by default. To open it with `Ctrl`+`]` (which replaces the shell's own character search on that key), pass `--bind-ai-resume` to `atuin init`; or bind the widget to a key of your choice after the `atuin init` line:
+`Ctrl`+`T` opens `atuin resume` when `threads.enabled` is true. This key might replace your shell's built-in `transpose-chars` binding in emacs mode. To disable the keybinding, set `bind_ai_resume = false` in your config, or run `atuin setup --only --no-ai-resume`.
 
-```
-bindkey -M emacs '^]' atuin-ai-resume
-bindkey -M viins '^]' atuin-ai-resume-viins
-bindkey -M vicmd '^]' atuin-ai-resume-vicmd
-```
+To bind the `resume` widget yourself, add these lines after the `atuin init` line:
 
 ```
-atuin-bind -m emacs      '\C-]' atuin-ai-resume-emacs
-atuin-bind -m vi-insert  '\C-]' atuin-ai-resume-viins
-atuin-bind -m vi-command '\C-]' atuin-ai-resume-vicmd
+bindkey -M emacs '^T' atuin-ai-resume
+bindkey -M viins '^T' atuin-ai-resume-viins
+bindkey -M vicmd '^T' atuin-ai-resume-vicmd
 ```
 
 ```
-bind ctrl-] _atuin_ai_resume
-bind -M insert ctrl-] _atuin_ai_resume
+atuin-bind -m emacs      '\C-t' atuin-ai-resume-emacs
+atuin-bind -m vi-insert  '\C-t' atuin-ai-resume-viins
+atuin-bind -m vi-command '\C-t' atuin-ai-resume-vicmd
+```
+
+```
+bind ctrl-t _atuin_ai_resume
+bind -M insert ctrl-t _atuin_ai_resume
 ```
 
 Through the widget, the command it picks lands in your shell, as with the history search.
@@ -162,8 +196,8 @@ Once you choose a thread, with `Enter` (or `Tab` to edit the command first), Atu
 The help line says what the keys do there: `Enter` resumes (or edits, opened with `Tab`), `Tab` edits the command first, and `Esc` goes back.
 
 - The session's own agent comes first and is already selected, so `Enter` `Enter` resumes it. If the session was recorded on another machine, or its transcript was deleted, Atuin writes the transcript back out from the synced messages before resuming it ("from sync").
-- Right under it, forking writes the session out as a new session of the same agent, with the same history, tool calls and all, and resumes that. The original is left as it is. The fork is linked to it the way the agent links its own forks (Claude Code's `forkedFrom`, Codex's `forked_from_id`, Grok Build's `parent_session_id`, Kiro's `parentSessionId`, Pi's `parentSession`; Copilot's start event gets a note it keeps; opencode gets a line it keeps from the model), so it's grouped under the original, with an Atuin id of its own. It keeps the original's title. Pi names the original by its file, so a Pi session that isn't on this machine is written out first. Forking is selected instead of the original when the original can't resume here, or its agent has it open on this machine. Sessions with no messages can't be forked.
-- Every other agent installed on this machine follows. Picking one continues the session there as a new session: the conversation carries over, and so do the tool calls captured with their input and output (`capture_tools`), with what they returned. Each becomes the new agent's own tool where it has one that does the same (a shell command, reading, writing or editing a file, a search), and stays the tool it was otherwise: the agent reads it, it just can't call it again. Calls captured without their input, calls that never got a result, and web searches the model's provider ran itself become notes in the text, and reasoning is dropped. The new session opens with a note to the agent naming the session it continues, by its own agent's id and its Atuin id (in Pi, the note opens the first prompt, so you see it too). Agents that aren't installed aren't listed, and with nothing else to offer (no other agent installed, and a session that can't be forked) `Enter` resumes straight away.
+- Right under it, forking writes the session out as a new session of the same agent, with the same history, tool calls and all, and resumes that. The original is left as it is. The fork is linked to it the way the agent links its own forks (Claude Code's `forkedFrom`, Codex's `forked_from_id`, Grok Build's `parent_session_id`, Hermes Agent's `_branched_from`, Kiro's `parentSessionId`, Pi's `parentSession`; Copilot's start event gets a note it keeps; opencode gets a line it keeps from the model), so it's grouped under the original, with an Atuin id of its own. It keeps the original's title. In Hermes Agent, it gets the next of its line, `#2`. Pi names the original by its file, so a Pi session that isn't on this machine is written out first. Forking is selected instead of the original when the original can't resume here, or its agent has it open on this machine. Sessions with no messages can't be forked.
+- Every other agent installed on this machine follows. Picking one continues the session there as a new session: the conversation carries over, and so do the tool calls captured with their input and output (`capture_tools`), with what they returned. Each becomes the new agent's own tool where it has one that does the same (a shell command, reading, writing or editing a file, a search), and stays the tool it was otherwise: the agent reads it, it just can't call it again. Calls captured without their input, calls that never got a result, and web searches the model's provider ran itself become notes in the text, and reasoning is dropped. The new session opens with a note to the agent naming the session it continues, by its own agent's id and its Atuin id. In Pi and Hermes Agent, the note opens the first prompt, so you see it too. Agents that aren't installed aren't listed, and with nothing else to offer (no other agent installed, and a session that can't be forked) `Enter` resumes straight away.
 - If the session's own agent can't resume it here (an agent that isn't installed, or a session whose transcript is here but whose directory is gone, for an agent that needs it), its line is dimmed with the reason, and the next one is selected instead.
 
 A session keeps one id on every machine. When you resume one in its own agent and its transcript is on this machine, Atuin first catches it up with the synced messages:
@@ -171,9 +205,9 @@ A session keeps one id on every machine. When you resume one in its own agent an
 - If the session continued on another machine since, the messages this copy lacks are appended to it, and it resumes in place. The status line says `caught up: 12 messages from @3f9a12bc`.
 - If this copy is up to date, or went on past the newest messages along the same branch, it resumes unchanged.
 - Otherwise Atuin writes nothing and asks, with the chooser saying why: when the agent is running this session here (`Claude Code is running this session here`), when this copy went another way than the newest messages, when it has messages sync hasn't got, or when this copy can't be caught up (`couldn't catch up: ...`). Its first line resumes this copy unchanged, and a fork line for each branch of the session, newest first, forks from that branch (`fork @3f9a12bc's · +11 since they split · 20m ago`). With the agent running here, the newest fork is selected.
-- When this copy went another way, sync holds every message of it, and the agent isn't running it here, a switch line for each other branch comes after the first line (`switch to @3f9a12bc's · replaces this copy, yours stays in atuin`). It moves this copy onto that branch, in place, under the same session id, and resumes it. The history this copy shares with that branch stays exactly as it was, and the messages this copy went on with are taken out. The branch's messages since the two split are added from sync, so, like a restore, they carry what Atuin keeps of them: the conversation and which tools were called, but not the other machine's tool input and output, or its images. Before anything changes, your copy is saved whole to `ai/switched/<agent>/` in Atuin's data directory, where no agent lists it, and the status line says where: `switched to @3f9a12bc's branch: 24 messages (your copy is at ...)`. Atuin never deletes these copies. The branch this copy was on stays in Atuin too, so forking it brings it back. Claude Code, Codex, Copilot, Grok Build, Kiro and Pi sessions can switch. These can only fork, and get no switch line: a Codex session that was reverted, so its history spans several files, or that Codex wrote in its older format; a Pi session file Pi hasn't opened since version 2 of its format; and opencode sessions, which live in a database.
+- When this copy went another way, sync holds every message of it, and the agent isn't running it here, a switch line for each other branch comes after the first line (`switch to @3f9a12bc's · replaces this copy, yours stays in atuin`). It moves this copy onto that branch, in place, under the same session id, and resumes it. The history this copy shares with that branch stays exactly as it was, and the messages this copy went on with are taken out. The branch's messages since the two split are added from sync, so, like a restore, they carry what Atuin keeps of them: the conversation and which tools were called, but not the other machine's tool input and output, or its images. Before anything changes, your copy is saved whole to `ai/switched/<agent>/` in Atuin's data directory, where no agent lists it, and the status line says where: `switched to @3f9a12bc's branch: 24 messages (your copy is at ...)`. Atuin never deletes these copies. The branch this copy was on stays in Atuin too, so forking it brings it back. Claude Code, Codex, Copilot, Grok Build, Kiro and Pi sessions can switch. These can only fork, and get no switch line: a Codex session that was reverted, so its history spans several files, or that Codex wrote in its older format; a Pi session file Pi hasn't opened since version 2 of its format; and opencode sessions, which live in a database. Hermes Agent sessions are neither caught up nor switched, since Hermes takes only new sessions from Atuin: a copy behind, or gone another way, forks.
 
-Atuin never merges branches, and never writes to a session its agent has open. Claude Code, Copilot, and Codex where it keeps session locks, say which session they have open. Kiro says while a turn runs (its header's status). Grok Build, opencode, Pi, Kiro between turns and other Codex installs don't, so Atuin treats a session as possibly open, and doesn't catch it up, while one of that agent's processes works in the session's directory or below it: the directory this copy records, or else where the session works on this machine. A process elsewhere counts when its command line names the session (`grok --resume <id>`, `opencode -s <id>`, `codex resume <id>`, `pi --session <file>`). While the session's transcript has changed in the last two minutes, any running process of that agent counts, wherever it works.
+Atuin never merges branches, and never writes to a session its agent has open. Claude Code, Copilot, and Codex where it keeps session locks, say which session they have open. Kiro says while a turn runs (its header's status), and so does Hermes Agent (a turn's lease in its database). Grok Build, opencode, Pi, Kiro between turns and other Codex installs don't, so Atuin treats a session as possibly open, and doesn't catch it up, while one of that agent's processes works in the session's directory or below it: the directory this copy records, or else where the session works on this machine. A process elsewhere counts when its command line names the session (`grok --resume <id>`, `opencode -s <id>`, `codex resume <id>`, `pi --session <file>`). While the session's transcript has changed in the last two minutes, any running process of that agent counts, wherever it works.
 
 A session written back out from sync, or continued in another agent, resumes in the directory the session ran in when that exists here. Otherwise, when you're in a checkout of a repository with the same name, it resumes in the same place in that checkout (or at its root), and otherwise in the current directory. The picker says which. A Kiro session Atuin writes opens in Kiro's default agent profile (`kiro-cli agent set-default`, else `vibe`): Kiro resumes a session in the profile its header names, whatever `--agent` says.
 
@@ -190,7 +224,7 @@ resume_chooser = false
 
 The chooser still opens for a session its own agent can't resume.
 
-From the command line, `atuin resume <id>` resumes a session in its own agent directly (an id prefix works too), writing it out from sync first when it isn't on this machine, and `atuin resume <id> --in codex` continues it in another (`claude-code`, `codex`, `copilot`, `grok`, `kiro`, `opencode`, `pi` or `omp`; `claude` is short for `claude-code` wherever Atuin takes an agent's name, and `kiro-cli` for `kiro`). `atuin resume <id> --fork` forks it. It catches the session up with sync as the picker does, and fails when that needs a choice, saying which: `--as-is` resumes this copy unchanged, `--switch` switches it to another branch, and `--fork` forks it from its newest branch. `--branch` picks the branch to catch up to, to switch to, to fork from, or to continue with `--in`: `this`, `@<host id>`, or the start of the id the error lists. A session that went different ways on several machines needs `--branch` with `--in`, and with `--switch` when more than one branch could be switched to; without it, Atuin lists the branches to choose from. `--as-is`, `--switch` and `--branch` need an id that names a single session: when it names several, Atuin lists them and asks you to be more specific. `--print` prints the command instead of running it.
+From the command line, `atuin resume <id>` resumes a session in its own agent directly (an id prefix works too), writing it out from sync first when it isn't on this machine, and `atuin resume <id> --in codex` continues it in another (`claude-code`, `codex`, `copilot`, `grok`, `hermes`, `kiro`, `opencode`, `pi`, `omp` or `vibe`; `claude` is short for `claude-code` wherever Atuin takes an agent's name, and `kiro-cli` for `kiro`). `atuin resume <id> --fork` forks it. It catches the session up with sync as the picker does, and fails when that needs a choice, saying which: `--as-is` resumes this copy unchanged, `--switch` switches it to another branch, and `--fork` forks it from its newest branch. `--branch` picks the branch to catch up to, to switch to, to fork from, or to continue with `--in`: `this`, `@<host id>`, or the start of the id the error lists. A session that went different ways on several machines needs `--branch` with `--in`, and with `--switch` when more than one branch could be switched to; without it, Atuin lists the branches to choose from. `--as-is`, `--switch` and `--branch` need an id that names a single session: when it names several, Atuin lists them and asks you to be more specific. `--print` prints the command instead of running it.
 
 The id can be the agent's own, or the thread's Atuin id, which Inspect and the MCP threads tools show. An Atuin id is a UUIDv7, written as 32 hex digits like a history id. It's fixed when Atuin first records the session, and is the same for every agent and on every machine. Its first 12 digits are when the session started, so a prefix needs more digits than that to name a single session.
 
@@ -215,7 +249,7 @@ inline_height = 40
 mouse = true
 ```
 
-To resume an agent's sessions with a command of your own in place of the built-in one, give a template per agent under `[threads.resume]` (`claude`, `codex`, `copilot`, `grok`, `kiro`, `opencode`, `pi`, `omp` or `amp`). It runs after `cd -- <cwd> &&`, with these substituted:
+To resume an agent's sessions with a command of your own in place of the built-in one, give a template per agent under `[threads.resume]` (`claude`, `codex`, `copilot`, `grok`, `hermes`, `kiro`, `opencode`, `pi`, `omp` or `amp`). It runs after `cd -- <cwd> &&`, with these substituted:
 
 - `{id}`: the agent's own id for the session;
 - `{path}`: the session's transcript on this machine (for a session written back out from sync, the one Atuin wrote);

@@ -4,6 +4,8 @@ Note
 
 The snippets on this page must go in your shell's startup file (`~/.bashrc`, `~/.zshrc`, `~/.config/fish/config.fish`, etc.) — the same file where you run `atuin init`. Custom bindings that set `ATUIN_NOBIND` and bind keys afterwards only take effect if they run at shell startup. Running them once in an interactive session, or placing them in a file your shell does not source, has no lasting effect.
 
+`atuin setup` adds the `atuin init` line to the startup file of zsh, bash, fish and PowerShell. If your startup file already has that line, use it in place of the snippet's own `atuin init` line. Set `ATUIN_NOBIND` before that line, and put your bindings after it.
+
 ## Custom up arrow filter mode
 
 It can be useful to use a different filter or search mode on the up arrow. For example, you could use ctrl-r for searching globally, but the up arrow for searching history from the current directory only.
@@ -20,35 +22,65 @@ Our default up-arrow binding can be a bit contentious. Some people love it, some
 
 It becomes much more powerful if you consider binding a different filter mode to the up arrow. For example, on "up" Atuin can default to searching all history for the current directory only, while Ctrl-r searches history globally. See the [config](https://docs.atuin.sh/configuration/config/#filter_mode_shell_up_key_binding) for more.
 
-Otherwise, if you don't like it, you can disable it.
-
-You can also disable either the up-arrow or `Ctrl`+`R` bindings individually, by passing `--disable-up-arrow` or `--disable-ctrl-r` to the call to `atuin init` in your shell config file:
-
-An example for zsh:
+Otherwise, if you don't like it, you can disable it. `atuin setup` turns off the up-arrow or `Ctrl`+`R` binding individually:
 
 ```
 # Bind ctrl-r but not up arrow
-eval "$(atuin init zsh --disable-up-arrow)"
+atuin setup --only --no-up-arrow
 
 # Bind up-arrow but not ctrl-r
-eval "$(atuin init zsh --disable-ctrl-r)"
+atuin setup --only --no-ctrl-r
 ```
 
-Or set `bind_up_arrow = false` or `bind_ctrl_r = false` in your [config](https://docs.atuin.sh/configuration/config/#bind_ctrl_r-and-bind_up_arrow).
+Setup writes `bind_up_arrow = false` or `bind_ctrl_r = false` to your [config](https://docs.atuin.sh/configuration/config/#bind_ctrl_r-and-bind_up_arrow), and new shells pick it up. `--up-arrow` and `--ctrl-r` bind the keys again.
 
-If you don't want either key to be bound, either pass both `--disable` arguments, or set the environment variable `ATUIN_NOBIND` to any value before the call to `atuin init`:
+You can also manually set `bind_up_arrow = false` or `bind_ctrl_r = false` in your config.
+
+If you don't want either key to be bound, run `atuin setup --only --no-ctrl-r --no-up-arrow`. You can also set the environment variable `ATUIN_NOBIND` to completely disable all keybindings:
 
 ```
 ## Do not bind any keys
-# Either:
-eval "$(atuin init zsh --disable-up-arrow --disable-ctrl-r)"
-
-# Or:
 export ATUIN_NOBIND="true"
 eval "$(atuin init zsh)"
 ```
 
 You can then choose to bind Atuin if needed, do this after the call to init.
+
+Deprecated `init` flags
+
+In older versions of Atuin, keybindings were configured via flags passed to `atuin init`, like `--disable-ctrl-r`, `--disable-up-arrow`, and `--bind-ai-resume`. These flags are still respected, but are deprecated in favor of [`bind_ctrl_r`](https://docs.atuin.sh/configuration/config/#bind_ctrl_r-and-bind_up_arrow), [`bind_up_arrow`](https://docs.atuin.sh/configuration/config/#bind_ctrl_r-and-bind_up_arrow), and [`bind_ai_resume`](https://docs.atuin.sh/configuration/config/#bind_ai_resume) in `config.toml`. `atuin setup` will migrate these flags to their corresponding config options when it runs.
+
+## Thread resume key
+
+By default, when [`threads.enabled`](https://docs.atuin.sh/ai/threads/index.md) is true, `atuin init` binds `Ctrl`+`T` to Atuin's [thread picker](https://docs.atuin.sh/ai/threads/#resuming), the same one opened by `atuin resume`. The key is bound in Bash, Zsh, and fish, in the `emacs`, `vi-insert`, and `vi-command` keymaps. Note that it may shadow your shell's built-in `transpose-chars` action.
+
+You can disable this binding by running `atuin setup --only --no-ai-resume` or by setting `bind_ai_resume = false` in your [config](https://docs.atuin.sh/configuration/config/#bind_ai_resume).
+
+To bind a key of your choice instead, set `bind_ai_resume = false` and add the key after the `atuin init` line:
+
+```
+eval "$(atuin init zsh)"
+bindkey -M emacs '^x^r' atuin-ai-resume
+bindkey -M viins '^x^r' atuin-ai-resume-viins
+bindkey -M vicmd '^x^r' atuin-ai-resume-vicmd
+```
+
+```
+eval "$(atuin init bash)"
+atuin-bind -m emacs      '\C-x\C-r' atuin-ai-resume-emacs
+atuin-bind -m vi-insert  '\C-x\C-r' atuin-ai-resume-viins
+atuin-bind -m vi-command '\C-x\C-r' atuin-ai-resume-vicmd
+```
+
+`atuin-bind` is the helper that `atuin init bash` defines; see [Bash](#bash). It also works under ble.sh.
+
+```
+atuin init fish | source
+bind ctrl-x,ctrl-r _atuin_ai_resume
+bind -M insert ctrl-x,ctrl-r _atuin_ai_resume
+```
+
+(Fish 3.x spells the key `\cx\cr`.)
 
 ## Enter key behavior
 

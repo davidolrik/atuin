@@ -19,7 +19,7 @@ At any time, you can open the TUI with the default keybindings of the up arrow, 
 
 Once in the TUI, press enter to immediately execute a command, or press tab to insert it into your shell for editing.
 
-While searching in the TUI, you can narrow the search scope by pressing `ctrl-r` to cycle through [filter modes](https://docs.atuin.sh/guide/advanced-usage/#filter-mode) — the full history, this machine, the current directory, the current git repository, or the current shell session.
+While searching in the TUI, you can narrow the search scope by pressing `ctrl-r` to cycle through [filter modes](https://docs.atuin.sh/guide/advanced-usage/#filter-mode) — the full history, this machine, the current directory, the current repository, or the current shell session.
 
 See the [advanced usage](https://docs.atuin.sh/guide/advanced-usage/index.md) page for more options.
 
@@ -31,7 +31,13 @@ The default configuration file is located at `~/.atuin/config.toml`.
 
 ### Keybindings
 
-We've got a [full page dedicated to keybinding adjustments](https://docs.atuin.sh/configuration/key-binding/index.md). It covers a whole bunch of options, including disabling the up arrow behavior if you don't like it.
+If you don't like the up arrow opening Atuin, turn that binding off:
+
+```
+atuin setup --only --no-up-arrow
+```
+
+We've got a [full page dedicated to keybinding adjustments](https://docs.atuin.sh/configuration/key-binding/index.md). It covers a whole bunch of other options.
 
 ### Enter to run
 

@@ -25,25 +25,15 @@ See [Keeping Secrets Out of Atuin](https://docs.atuin.sh/guide/excluding-command
 
 ## How do I remove the default up arrow binding?
 
-Open your shell config file, find the line containing `atuin init`.
-
-Add `--disable-up-arrow`, e.g.:
+Run:
 
 ```
-eval "$(atuin init zsh --disable-up-arrow)"
+atuin setup --only --no-up-arrow
 ```
+
+Setup writes `bind_up_arrow = false` to your config, and new shells pick it up.
 
 See [key binding](https://docs.atuin.sh/configuration/key-binding/index.md) for more
-
-## How do I remove the default question mark binding for Atuin AI?
-
-Open your shell config file, find the line containing `atuin init`.
-
-Add `--disable-ai`, e.g.:
-
-```
-eval "$(atuin init zsh --disable-ai)"
-```
 
 ## How do I edit a command instead of running it immediately?
 
@@ -80,7 +70,7 @@ With the [update check](https://docs.atuin.sh/configuration/config/#update_check
 If you'd rather the code wasn't in the binary at all, build from source without the default features:
 
 ```
-cargo build --release --no-default-features --features client,daemon,clipboard
+cargo build --release --no-default-features --features client,daemon
 ```
 
 This compiles out the update checker, the sync commands, and AI.
@@ -89,10 +79,10 @@ This compiles out the update checker, the sync commands, and AI.
 
 If you have a backup of your data directory (`~/.atuin/data`, or `~/.local/share/atuin` for older installs), you can import it by:
 
-1. disabling Atuin by commenting out the shell integration; for example, for bash it's `eval "$(atuin init bash)"`
+1. disabling Atuin with `atuin setup --only --no-shell-history`
 1. copying the backup to `~/.atuin/data`
-1. reenabling Atuin
-1. setting up sync!
+1. reenabling Atuin with `atuin setup --only --shell-history`
+1. setting up sync with `atuin setup --sync cloud`!
 
 ## Alternative projects
 
